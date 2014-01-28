@@ -148,7 +148,7 @@ gcode_out.write("G71 G90\n") #metric, absolute coords
 #write Gcode for marking out the QR code pattern
 
 gcode_out.write("( Cutting out QR code )\n")
-gcode_out.write("T301 M6 (" + str(mill_width) + "mm engraving tool )\n") 
+gcode_out.write("T01 M6 (" + str(mill_width) + "mm engraving tool )\n") 
 gcode_out.write("F" + str(feed_rate) + "\n")
 gcode_out.write("G1 Z" + str(clearance_height) + "\n")
 
