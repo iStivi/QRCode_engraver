@@ -19,12 +19,12 @@ output_file = coin_type + "_qr_engrave.nc"
 
 
 #parameters for the engraving process
-feed_rate = 500 #mm per second, must be type string
-mill_width = 0.1  #engraver/end mill width in mm
-engrave_depth = 0.5 #depth of engrave cut in mm
-depth_per_pass = 0.25 #depth to cut at a time in mm
-stock_thickness = 2 #thickness of stock in mm
-clearance_height = 3 #height above stock to make quick moves between cuts in mm
+feed_rate = 200 #mm per second, must be type string
+mill_width = 0.15  #engraver/end mill width in mm at top of cut
+engrave_depth = 0.2 #depth of engrave cut in mm
+depth_per_pass = 0.2 #depth to cut at a time in mm
+stock_thickness = 3 #thickness of stock in mm
+clearance_height = 2 #height above stock to make quick moves between cuts in mm
 pixel_size = 0.8 #in mm. Version 3 qr code is 29 pixels all sides
 border_size = 4 #number of pixels clearance either side of code area, 4 is standard
 
@@ -40,10 +40,10 @@ print(square_size, "mm dimensions")
 
 def cut_pixel( location_list ):
     print("pixel cutting routine at " , location_list)
-    x_start = (location_list[0] * pixel_size) + mill_width/2
-    y_start = square_size - (location_list[1] * pixel_size + mill_width/2)
-    x_end = (location_list[0]*pixel_size) + pixel_size - mill_width/2
-    y_end = square_size - (location_list[1] * pixel_size + pixel_size -mill_width/2)
+    x_start = (location_list[0] * pixel_size) + mill_width
+    y_start = square_size - (location_list[1] * pixel_size + mill_width)
+    x_end = (location_list[0]*pixel_size) + pixel_size - mill_width
+    y_end = square_size - (location_list[1] * pixel_size + pixel_size -mill_width)
     gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})
     #cut square
     cut_passes = int(engrave_depth / depth_per_pass)
@@ -68,14 +68,14 @@ def cut_pixel( location_list ):
     gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})
 
     #cut horizontal strips if pixel even, vertical strips of odd
-    strips = int((pixel_size - mill_width) / mill_width)
+    strips = int((pixel_size - ( mill_width * 2)) / mill_width)
     
     if (line_no+point_no)%2==0:
         #horizontal strips
         for cut_pass in range(0, cut_passes): 
             for strip_pass in range(0, strips):
                 pass_depth = (1 + cut_pass) * depth_per_pass
-                y_strip = y_start - ( mill_width/2 ) - ( strip_pass * mill_width) 
+                y_strip = y_start - ( mill_width ) - ( strip_pass * mill_width) 
                 gcode_out.write("G1 Z%0.4f \n" % ((-1 * pass_depth ) + depth_per_pass * 2))
                 gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_strip})
                 gcode_out.write("G1 Z%0.4f \n" % (-1 * pass_depth ))                
@@ -85,7 +85,7 @@ def cut_pixel( location_list ):
         else:
             for strip_pass in range(0, strips):
                 pass_depth = engrave_depth
-                y_strip = y_start - ( mill_width/2 ) - ( strip_pass * mill_width) 
+                y_strip = y_start - ( mill_width ) - ( strip_pass * mill_width) 
                 gcode_out.write("G1 Z%0.4f \n" % ((-1 * pass_depth ) + depth_per_pass * 2))
                 gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_strip})
                 gcode_out.write("G1 Z%0.4f \n" % (-1 * pass_depth ))                
@@ -96,7 +96,7 @@ def cut_pixel( location_list ):
         for cut_pass in range(0, cut_passes): 
             for strip_pass in range(0, strips):
                 pass_depth = (1 + cut_pass) * depth_per_pass
-                x_strip = x_start + ( mill_width/2 ) 
+                x_strip = x_start + ( mill_width ) + ( strip_pass * mill_width)
                 gcode_out.write("G1 Z%0.4f \n" % ((-1 * pass_depth ) + depth_per_pass * 2))
                 gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_strip, 'y': y_start})
                 gcode_out.write("G1 Z%0.4f \n" % (-1 * pass_depth ))                
@@ -106,7 +106,7 @@ def cut_pixel( location_list ):
         else:
             for strip_pass in range(0, strips):
                 pass_depth = engrave_depth
-                x_strip = x_start + ( mill_width/2 ) 
+                x_strip = x_start + ( mill_width ) + ( strip_pass * mill_width)
                 gcode_out.write("G1 Z%0.4f \n" % ((-1 * pass_depth ) + depth_per_pass * 2))
                 gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_strip, 'y': y_start})
                 gcode_out.write("G1 Z%0.4f \n" % (-1 * pass_depth ))                
