@@ -40,10 +40,10 @@ print(square_size, "mm dimensions")
 
 def cut_pixel( location_list ):
     print("pixel cutting routine at " , location_list)
-    x_start = (location_list[0] * pixel_size) + mill_width
-    y_start = square_size - (location_list[1] * pixel_size + mill_width)
-    x_end = (location_list[0]*pixel_size) + pixel_size - mill_width
-    y_end = square_size - (location_list[1] * pixel_size + pixel_size -mill_width)
+    x_start = (location_list[0] * pixel_size) + mill_width/2
+    y_start = square_size - (location_list[1] * pixel_size) - mill_width/2
+    x_end = (location_list[0]*pixel_size) + pixel_size - mill_width/2
+    y_end = square_size - (location_list[1] * pixel_size) - pixel_size + mill_width/2
     gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})
     #cut square
     cut_passes = int(engrave_depth / depth_per_pass)
@@ -64,7 +64,7 @@ def cut_pixel( location_list ):
         gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})  
 
     #lift cutter and go to start corner
-    gcode_out.write("G1 Z%0.4f \n" % clearance_height)
+    gcode_out.write("G1 Z0 \n")
     gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})
 
     #cut horizontal strips if pixel even, vertical strips of odd
@@ -77,9 +77,9 @@ def cut_pixel( location_list ):
                 pass_depth = (1 + cut_pass) * depth_per_pass
                 y_strip = y_start - ( mill_width ) - ( strip_pass * mill_width) 
                 gcode_out.write("G1 Z%0.4f \n" % ((-1 * pass_depth ) + depth_per_pass * 2))
-                gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_strip})
+                gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': (x_start + mill_width/2), 'y': y_strip})
                 gcode_out.write("G1 Z%0.4f \n" % (-1 * pass_depth ))                
-                gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end, 'y': y_strip})
+                gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': (x_end - mill_width/2), 'y': y_strip})
         if(engrave_depth%depth_per_pass==0):
             pass
         else:
@@ -87,9 +87,9 @@ def cut_pixel( location_list ):
                 pass_depth = engrave_depth
                 y_strip = y_start - ( mill_width ) - ( strip_pass * mill_width) 
                 gcode_out.write("G1 Z%0.4f \n" % ((-1 * pass_depth ) + depth_per_pass * 2))
-                gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_strip})
+                gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': (x_start + mill_width/2), 'y': y_strip})
                 gcode_out.write("G1 Z%0.4f \n" % (-1 * pass_depth ))                
-                gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end, 'y': y_strip})      
+                gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': (x_end - mill_width/2), 'y': y_strip})      
         gcode_out.write("G1 Z%0.4f \n" % clearance_height)
     else:
         #vertical strips
@@ -98,9 +98,9 @@ def cut_pixel( location_list ):
                 pass_depth = (1 + cut_pass) * depth_per_pass
                 x_strip = x_start + ( mill_width ) + ( strip_pass * mill_width)
                 gcode_out.write("G1 Z%0.4f \n" % ((-1 * pass_depth ) + depth_per_pass * 2))
-                gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_strip, 'y': y_start})
+                gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_strip, 'y': (y_start - mill_width/2)})
                 gcode_out.write("G1 Z%0.4f \n" % (-1 * pass_depth ))                
-                gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_strip, 'y': y_end})
+                gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_strip, 'y': (y_end + mill_width/2)})
         if(engrave_depth%depth_per_pass==0):
             pass
         else:
@@ -108,9 +108,9 @@ def cut_pixel( location_list ):
                 pass_depth = engrave_depth
                 x_strip = x_start + ( mill_width ) + ( strip_pass * mill_width)
                 gcode_out.write("G1 Z%0.4f \n" % ((-1 * pass_depth ) + depth_per_pass * 2))
-                gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_strip, 'y': y_start})
+                gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_strip, 'y': (y_start - mill_width/2)})
                 gcode_out.write("G1 Z%0.4f \n" % (-1 * pass_depth ))                
-                gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_strip, 'y': y_end})      
+                gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_strip, 'y': (y_end + mill_width/2)})      
         gcode_out.write("G1 Z%0.4f \n" % clearance_height)
 
     return
