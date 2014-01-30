@@ -19,7 +19,7 @@ output_file = coin_type + "_qr_engrave.nc"
 
 
 #parameters for the engraving process
-feed_rate = 200 #mm per second, must be type string
+feed_rate = 200 #mm per second
 mill_width = 0.15  #engraver/end mill width in mm at top of cut
 engrave_depth = 0.2 #depth of engrave cut in mm
 depth_per_pass = 0.2 #depth to cut at a time in mm
