@@ -24,146 +24,882 @@ feed_rate = 200 #mm per second
 mill_width = 0.15  #engraver/end mill width in mm at top of cut
 tool_number = 1 #number of tool programmed in Mach3. Safe to ignore for manual mounting
 engrave_depth = 0.2 #depth of engrave cut in mm
-depth_per_pass = 0.2 #depth to cut at a time in mm
+depth_per_pass = 0.15 #depth to cut at a time in mm
 stock_thickness = 3 #thickness of stock in mm
 clearance_height = 2 #height above stock to make quick moves between cuts in mm
 pixel_size = 0.8 #in mm. Version 3 qr code is 29 pixels all sides
-border_size = 4 #number of pixels clearance either side of code area, 4 is standard
+border_size = 1 #number of pixels clearance either side of code area, 4 is standard. Minimum of 1
 
 square_size = pixel_size*(29+(border_size*2))
 print(square_size, "mm dimensions")
-
-
-##############################
-## Function for pixel cutting
-##############################
-
-'''individual pixels will be cut in alternating horizontal and vertical stroke patterns'''
-
-def cut_pixel( location_list ):
-    print("pixel cutting routine at " , location_list)
-    x_start = (location_list[0] * pixel_size) + mill_width/2
-    y_start = square_size - (location_list[1] * pixel_size) - mill_width/2
-    x_end = (location_list[0]*pixel_size) + pixel_size - mill_width/2
-    y_end = square_size - (location_list[1] * pixel_size) - pixel_size + mill_width/2
-    gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})
-    #cut square
-    cut_passes = int(engrave_depth / depth_per_pass)
-    for cut_pass in range(0, cut_passes):
-        pass_depth = (1 + cut_pass) * depth_per_pass
-        gcode_out.write("G1 Z-%0.4f \n" % pass_depth)
-        gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end, 'y': y_start})
-        gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end, 'y': y_end})
-        gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_end})
-        gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})
-    if(engrave_depth%depth_per_pass==0):
-        pass
-    else:
-        gcode_out.write("G1 Z-%0.4f \n" % engrave_depth)
-        gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end, 'y': y_start})
-        gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end, 'y': y_end})
-        gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_end})
-        gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})  
-
-    #lift cutter and go to start corner
-    gcode_out.write("G1 Z0 \n")
-    gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})
-
-    #cut horizontal strips if pixel even, vertical strips of odd
-    strips = int((pixel_size - ( mill_width * 2)) / mill_width)
-    
-    if (line_no+point_no)%2==0:
-        #horizontal strips
-        for cut_pass in range(0, cut_passes): 
-            for strip_pass in range(0, strips):
-                pass_depth = (1 + cut_pass) * depth_per_pass
-                y_strip = y_start - ( mill_width ) - ( strip_pass * mill_width) 
-                gcode_out.write("G1 Z%0.4f \n" % ((-1 * pass_depth ) + depth_per_pass * 2))
-                gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': (x_start + mill_width/2), 'y': y_strip})
-                gcode_out.write("G1 Z%0.4f \n" % (-1 * pass_depth ))                
-                gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': (x_end - mill_width/2), 'y': y_strip})
-        if(engrave_depth%depth_per_pass==0):
-            pass
-        else:
-            for strip_pass in range(0, strips):
-                pass_depth = engrave_depth
-                y_strip = y_start - ( mill_width ) - ( strip_pass * mill_width) 
-                gcode_out.write("G1 Z%0.4f \n" % ((-1 * pass_depth ) + depth_per_pass * 2))
-                gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': (x_start + mill_width/2), 'y': y_strip})
-                gcode_out.write("G1 Z%0.4f \n" % (-1 * pass_depth ))                
-                gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': (x_end - mill_width/2), 'y': y_strip})      
-        gcode_out.write("G1 Z%0.4f \n" % clearance_height)
-    else:
-        #vertical strips
-        for cut_pass in range(0, cut_passes): 
-            for strip_pass in range(0, strips):
-                pass_depth = (1 + cut_pass) * depth_per_pass
-                x_strip = x_start + ( mill_width ) + ( strip_pass * mill_width)
-                gcode_out.write("G1 Z%0.4f \n" % ((-1 * pass_depth ) + depth_per_pass * 2))
-                gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_strip, 'y': (y_start - mill_width/2)})
-                gcode_out.write("G1 Z%0.4f \n" % (-1 * pass_depth ))                
-                gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_strip, 'y': (y_end + mill_width/2)})
-        if(engrave_depth%depth_per_pass==0):
-            pass
-        else:
-            for strip_pass in range(0, strips):
-                pass_depth = engrave_depth
-                x_strip = x_start + ( mill_width ) + ( strip_pass * mill_width)
-                gcode_out.write("G1 Z%0.4f \n" % ((-1 * pass_depth ) + depth_per_pass * 2))
-                gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_strip, 'y': (y_start - mill_width/2)})
-                gcode_out.write("G1 Z%0.4f \n" % (-1 * pass_depth ))                
-                gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_strip, 'y': (y_end + mill_width/2)})      
-        gcode_out.write("G1 Z%0.4f \n" % clearance_height)
-
-    return
-    
 
 ###############################################################
 ##Start Script
 ###############################################################
 
-#create qrcode data and generate sample png file
+def main():
+    #create qrcode data and generate sample png file
+    global qr
+    qr = qrcode.QRCode(
+        version=3,  #version 3 is smallest size bitcoin address will compress to
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        border=border_size,
+    )
 
-qr = qrcode.QRCode(
-    version=3,  #version 3 is smallest size bitcoin address will compress to
-    error_correction=qrcode.constants.ERROR_CORRECT_M,
-    border=border_size,
-)
+    qr.add_data(qrstring)
+    qr.make()
+    img = qr.make_image()
+    img.save("qr_view.png")
 
-qr.add_data(qrstring)
-qr.make()
-img = qr.make_image()
-img.save("qr_view.png")
+    numrows = len(qr.get_matrix())
+    numcols = len(qr.get_matrix()[0])
+    print("rows = ",numrows)
+    print("columns = ",numcols)
+
+    global check_array
+    check_array = [[False]*numcols for _ in range(numrows)]
+    global check_island_array
+    check_island_array = [[False]*numcols for _ in range(numrows)]
+    global island_array
+    island_array = [[True]*numcols for _ in range(numrows)]
+
+    build_island_array()
+
+    #Write header data to Gcode and set up machine
+    print(output_file)
+    
+    gcode_out = open(output_file,'w')
+    gcode_out.write("% QR Code Engraving script for " + coin_type + " \n")
+    gcode_out.write("% Code formatted for compatibility with Mach3 \n")
+    gcode_out.write("% Generated by qr_generator.py https://github.com/iStivi/QRCode_engraver \n")
+    gcode_out.write("% Engraving coded string: " + qrstring + " \n") 
+    gcode_out.write("G71 G90\n") #metric, absolute coords
+
+    #write Gcode for marking out the QR code pattern
+
+    gcode_out.write("% Cutting out QR code \n")
+    gcode_out.write("T%(a)s M6 ( %(b)smm engraving tool )\n" % {'a': tool_number, 'b': mill_width }) 
+    gcode_out.write("F" + str(feed_rate) + "\n")
+    gcode_out.write("G1 Z" + str(clearance_height) + "\n")
+
+    
+    ##cut outline paths
+    for y, line in enumerate(qr.get_matrix()):
+        #print(line_no, line)
+        for x, point in enumerate(line):
+            #print(line_no, point_no,point)
+            if point==False:
+                continue
+            else:
+                if check_array[x][y]==False:
+                    cut_path(gcode_out, [x,y])
+
+    ##use outline_array to cut around islands
+    for y in range(0,len(island_array)):
+        for x in range(0,len(island_array)):
+            if island_array[x][y] == False:
+                continue
+            else:
+                if check_island_array[x][y]==False:
+                    cut_island(gcode_out, [x,y])
+                    
+    gcode_out.write("M30 \n")
+    gcode_out.close()
 
 
-#Write header data to Gcode and set up machine
 
-print(output_file)
-gcode_out = open(output_file,'w')
+    
 
-gcode_out.write("% QR Code Engraving script for " + coin_type + " \n")
-gcode_out.write("% Code formatted for compatibility with Mach3 \n")
-gcode_out.write("% Generated by qr_generator.py https://github.com/iStivi/QRCode_engraver \n")
-gcode_out.write("% Engraving coded string: " + qrstring + " \n") 
-gcode_out.write("G71 G90\n") #metric, absolute coords
-
-#write Gcode for marking out the QR code pattern
-
-gcode_out.write("% Cutting out QR code \n")
-gcode_out.write("T%(a)s M6 ( %(b)smm engraving tool )\n" % {'a': tool_number, 'b': mill_width }) 
-gcode_out.write("F" + str(feed_rate) + "\n")
-gcode_out.write("G1 Z" + str(clearance_height) + "\n")
-
-
-for line_no, line in enumerate(qr.get_matrix()):
-    #print(line_no, line)
-    for point_no, point in enumerate(line):
-        #print(line_no, point_no,point)
-        if(point==False):
-            continue
-        else:
-            cut_pixel([point_no,line_no])
-       
+########################
+## Cut out islands
+########################
         
-gcode_out.write("M30 \n")
-gcode_out.close()
+def cut_island(gcode_out, location_list ):
+    #Cut out following top path starting from top left corner 
+    print("cutting island from ", location_list)
+    start_x = location_list[0]
+    start_y = location_list[1]
+    x_path = [start_x]
+    y_path = [start_y]
+    start_direction = 1
+    move_x = start_x
+    move_y = start_y
+
+    #check if pixel not already in middle of paths
+    if check_island_array[move_x][move_y+1] == True:
+        check_island_array[move_x][move_y] = True
+        return
+    elif check_island_array[move_x][move_y-1] == True:
+        check_island_array[move_x][move_y] = True
+        return
+    elif check_island_array[move_x+1][move_y] == True:
+        check_island_array[move_x][move_y] = True
+        return
+    elif check_island_array[move_x-1][move_y] == True:
+        check_island_array[move_x][move_y] = True
+        return
+
+    gcode_out.write("(Cutting island from %(x)s, %(y)s ) \n" % {'x':start_x, 'y':start_y})
+        
+    #move directions 1=right,2=down,3=left,4=up
+    #take pixel check all 4 directions
+    #####check starting direction
+    #check starting direction
+    if island_array[start_x][start_y-1] == True:
+        start_direction = 4
+        move_y = start_y-1
+    elif island_array[start_x + 1][start_y] == True:
+        start_direction = 1
+        move_x = start_x + 1
+    elif island_array[start_x][start_y + 1] == True:
+        start_direction = 2
+        move_y = start_y + 1
+    elif island_array[start_x - 1][start_y] == True:
+        start_direction = 3
+        move_x = start_x - 1
+    dir_path=[start_direction]
+    direction=start_direction
+    continue_path = True
+    while continue_path == True:
+        check_island_array[move_x][move_y] = True   #check off already done pixels
+        if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                    continue
+        if direction==1:   #moving right   
+            #check up
+            test_x = move_x
+            test_y = move_y - 1
+            test_pixel = island_array[test_x][test_y]
+            if test_pixel==True:
+                direction=4
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(4)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_y = move_y - 1
+                continue
+            #move right 1
+            test_x = move_x + 1
+            test_y = move_y
+            test_pixel = island_array[test_x][test_y]
+            if test_pixel==True:
+                move_x = move_x + 1
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                continue
+            #check down
+            test_x = move_x
+            test_y = move_y + 1
+            test_pixel = island_array[test_x][test_y]
+            if test_pixel==True:
+                direction=2
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(2)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_y = move_y + 1
+                continue
+            #check left
+            test_x = move_x - 1
+            test_y = move_y
+            test_pixel = island_array[test_x][test_y]
+            if test_pixel==True:
+                direction=3
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(3)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_x = move_x - 1
+                continue
+        elif direction==2:  #moving down
+            #check right
+            test_x = move_x + 1
+            test_y = move_y
+            test_pixel = island_array[test_x][test_y]
+            if test_pixel==True:
+                direction=1
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(1)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_x = move_x + 1
+                continue
+            #move down 1
+            test_x = move_x
+            test_y = move_y + 1
+            test_pixel = island_array[test_x][test_y]
+            if test_pixel==True:
+                move_y = move_y + 1
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                continue
+            #check left
+            test_x = move_x - 1
+            test_y = move_y
+            test_pixel = island_array[test_x][test_y]
+            if test_pixel==True:
+                direction=3
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(3)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_x = move_x - 1
+                continue
+            #check up
+            test_x = move_x
+            test_y = move_y - 1
+            test_pixel = island_array[test_x][test_y]
+            if test_pixel==True:
+                direction=4
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(4)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_y = move_y - 1
+                continue
+        elif direction == 3:    #move left
+            #check down
+            test_x = move_x
+            test_y = move_y + 1
+            test_pixel = island_array[test_x][test_y]
+            if test_pixel==True:
+                direction=2
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(2)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_y = move_y + 1
+                continue
+            #move left 1
+            test_x = move_x - 1
+            test_y = move_y
+            test_pixel = island_array[test_x][test_y]
+            if test_pixel==True:
+                move_x = move_x - 1
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                continue
+            #check up
+            test_x = move_x
+            test_y = move_y - 1
+            test_pixel = island_array[test_x][test_y]
+            if test_pixel==True:
+                direction=4
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(4)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_y = move_y - 1
+                continue
+            #check right
+            test_x = move_x + 1
+            test_y = move_y
+            test_pixel = island_array[test_x][test_y]
+            if test_pixel==True:
+                direction=1
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(1)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_x = move_x + 1
+                continue
+        elif direction == 4: #move up
+            #check left
+            test_x = move_x - 1
+            test_y = move_y
+            test_pixel = island_array[test_x][test_y]
+            if test_pixel==True:
+                direction=3
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(3)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_x = move_x - 1
+                continue
+            #move up 1
+            test_x = move_x
+            test_y = move_y - 1
+            test_pixel = island_array[test_x][test_y]
+            if test_pixel==True:
+                move_y = move_y - 1
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                continue
+            #check right
+            test_x = move_x + 1
+            test_y = move_y
+            test_pixel = island_array[test_x][test_y]
+            if test_pixel==True:
+                direction=1
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(1)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_x = move_x + 1
+                continue
+            #check down
+            test_x = move_x
+            test_y = move_y + 1
+            test_pixel = island_array[test_x][test_y]
+            if test_pixel==True:
+                direction=2
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(2)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_y = move_y + 1
+                continue
+    #print(x_path, y_path, dir_path)
+    
+    ###########################
+    ##G-code for cutting island
+    ###########################
+
+    #if single pixel do simple cut
+    if len(x_path) == 1:
+        print("pixel island routine at " , location_list)
+        x_start = (x_path[0] * pixel_size) - mill_width/2
+        y_start = square_size - (y_path[0] * pixel_size) + mill_width/2
+        x_end = (x_path[0]*pixel_size) + pixel_size + mill_width/2
+        y_end = square_size - (y_path[0] * pixel_size) - pixel_size - mill_width/2
+        gcode_out.write("( Single pixel cut ) \n")
+        gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})
+        #cut square
+        cut_passes = int(engrave_depth / depth_per_pass)
+        for cut_pass in range(0, cut_passes):
+            pass_depth = (1 + cut_pass) * depth_per_pass
+            gcode_out.write("G1 Z-%0.4f \n" % pass_depth)
+            gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end, 'y': y_start})
+            gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end, 'y': y_end})
+            gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_end})
+            gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})
+        if(engrave_depth%depth_per_pass==0):
+            pass
+        else:
+            gcode_out.write("G1 Z-%0.4f \n" % engrave_depth)
+            gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end, 'y': y_start})
+            gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end, 'y': y_end})
+            gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_end})
+            gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})  
+    else:
+        #start from top pixel and keep going down    
+        x_cut = ( x_path[0] * pixel_size ) - mill_width/2
+        y_cut = square_size - ( y_path[0] * pixel_size ) + mill_width/2
+        #move to start point of path
+        gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
+        cut_passes = int(engrave_depth / depth_per_pass)
+        for cut_pass in range(0, cut_passes):
+            pass_depth = (1 + cut_pass) * depth_per_pass
+            gcode_out.write("G1 Z-%0.4f \n" % pass_depth)
+            for i in range(1,len(x_path)):
+                direction = dir_path[i]
+                #move directions 1=right,2=down,3=left,4=up
+                if direction == 1:
+                    x_cut = ( x_path[i] * pixel_size ) - mill_width/2 
+                    y_cut = square_size - ( y_path[0] * pixel_size ) + mill_width/2
+                    gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
+                elif direction == 2:
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width/2
+                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width/2
+                    gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
+                elif direction == 3:
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width/2
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width/2
+                    gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
+                elif direction == 4:
+                    x_cut = ( x_path[i] * pixel_size ) - mill_width/2
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width/2
+                    gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
+        if(engrave_depth%depth_per_pass==0):
+            pass
+        else:
+            gcode_out.write("G1 Z-%0.4f \n" % engrave_depth)
+            for i in range(1,len(x_path)):
+                direction = dir_path[i]
+                #move directions 1=right,2=down,3=left,4=up
+                if direction == 1:
+                    x_cut = ( x_path[i] * pixel_size ) - mill_width/2 
+                    y_cut = square_size - ( y_path[0] * pixel_size ) + mill_width/2
+                    gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
+                elif direction == 2:
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width/2
+                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width/2
+                    gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
+                elif direction == 3:
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width/2
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width/2
+                    gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
+                elif direction == 4:
+                    x_cut = ( x_path[i] * pixel_size ) - mill_width/2
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width/2
+                    gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})      
+
+    #lift cutter away
+    gcode_out.write("G1 Z%0.4f \n" % clearance_height)
+
+def cut_path(gcode_out, location_list ):
+    #Cut out following top path starting from top left corner 
+    print("cutting path from ", location_list)
+    start_x = location_list[0]
+    start_y = location_list[1]
+    x_path = [start_x]
+    y_path = [start_y]
+    start_direction = 1
+    move_x = start_x
+    move_y = start_y
+
+    #check if pixel not already in middle of paths
+    if check_array[move_x][move_y+1]==True:
+        check_array[move_x][move_y] = True
+        return
+    elif check_array[move_x][move_y-1]==True:
+        check_array[move_x][move_y] = True
+        return
+    elif check_array[move_x+1][move_y]==True:
+        check_array[move_x][move_y] = True
+        return
+    elif check_array[move_x-1][move_y]==True:
+        check_array[move_x][move_y] = True
+        return
+
+    gcode_out.write("(Cutting path from %(x)s, %(y)s ) \n" % {'x':start_x, 'y':start_y})
+        
+    #move directions 1=right,2=down,3=left,4=up
+    #take pixel check all 4 directions
+    #####check starting direction
+    #check starting direction
+    if qr.get_matrix()[start_y-1][start_x] == True:
+        start_direction = 4
+        move_y = start_y-1
+    elif qr.get_matrix()[start_y][start_x+1] == True:
+        start_direction = 1
+        move_x = start_x + 1
+    elif qr.get_matrix()[start_y + 1][start_x] == True:
+        start_direction = 2
+        move_y = start_y + 1
+    elif qr.get_matrix()[start_y][start_x - 1] == True:
+        start_direction = 3
+        move_x = start_x - 1
+    dir_path=[start_direction]
+    direction=start_direction
+    continue_path = True
+    while continue_path == True:
+        check_array[move_x][move_y] = True   #check off already done pixels
+        if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                    continue
+        if direction==1:   #moving right   
+            #check up
+            test_x = move_x
+            test_y = move_y - 1
+            test_pixel = qr.get_matrix()[test_y][test_x]
+            if test_pixel==True:
+                direction=4
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(4)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_y = move_y - 1
+                continue
+            #move right 1
+            test_x = move_x + 1
+            test_y = move_y
+            test_pixel = qr.get_matrix()[test_y][test_x]
+            if test_pixel==True:
+                move_x = move_x + 1
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                continue
+            #check down
+            test_x = move_x
+            test_y = move_y + 1
+            test_pixel = qr.get_matrix()[test_y][test_x]
+            if test_pixel==True:
+                direction=2
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(2)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_y = move_y + 1
+                continue
+            #check left
+            test_x = move_x - 1
+            test_y = move_y
+            test_pixel = qr.get_matrix()[test_y][test_x]
+            if test_pixel==True:
+                direction=3
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(3)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_x = move_x - 1
+                continue
+        elif direction==2:  #moving down
+            #check right
+            test_x = move_x + 1
+            test_y = move_y
+            test_pixel = qr.get_matrix()[test_y][test_x]
+            if test_pixel==True:
+                direction=1
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(1)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_x = move_x + 1
+                continue
+            #move down 1
+            test_x = move_x
+            test_y = move_y + 1
+            test_pixel = qr.get_matrix()[test_y][test_x]
+            if test_pixel==True:
+                move_y = move_y + 1
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                continue
+            #check left
+            test_x = move_x - 1
+            test_y = move_y
+            test_pixel = qr.get_matrix()[test_y][test_x]
+            if test_pixel==True:
+                direction=3
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(3)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_x = move_x - 1
+                continue
+            #check up
+            test_x = move_x
+            test_y = move_y - 1
+            test_pixel = qr.get_matrix()[test_y][test_x]
+            if test_pixel==True:
+                direction=4
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(4)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_y = move_y - 1
+                continue
+        elif direction == 3:    #move left
+            #check down
+            test_x = move_x
+            test_y = move_y + 1
+            test_pixel = qr.get_matrix()[test_y][test_x]
+            if test_pixel==True:
+                direction=2
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(2)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_y = move_y + 1
+                continue
+            #move left 1
+            test_x = move_x - 1
+            test_y = move_y
+            test_pixel = qr.get_matrix()[test_y][test_x]
+            if test_pixel==True:
+                move_x = move_x - 1
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                continue
+            #check up
+            test_x = move_x
+            test_y = move_y - 1
+            test_pixel = qr.get_matrix()[test_y][test_x]
+            if test_pixel==True:
+                direction=4
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(4)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_y = move_y - 1
+                continue
+            #check right
+            test_x = move_x + 1
+            test_y = move_y
+            test_pixel = qr.get_matrix()[test_y][test_x]
+            if test_pixel==True:
+                direction=1
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(1)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_x = move_x + 1
+                continue
+        elif direction == 4: #move up
+            #check left
+            test_x = move_x - 1
+            test_y = move_y
+            test_pixel = qr.get_matrix()[test_y][test_x]
+            if test_pixel==True:
+                direction=3
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(3)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_x = move_x - 1
+                continue
+            #move up 1
+            test_x = move_x
+            test_y = move_y - 1
+            test_pixel = qr.get_matrix()[test_y][test_x]
+            if test_pixel==True:
+                move_y = move_y - 1
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                continue
+            #check right
+            test_x = move_x + 1
+            test_y = move_y
+            test_pixel = qr.get_matrix()[test_y][test_x]
+            if test_pixel==True:
+                direction=1
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(1)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_x = move_x + 1
+                continue
+            #check down
+            test_x = move_x
+            test_y = move_y + 1
+            test_pixel = qr.get_matrix()[test_y][test_x]
+            if test_pixel==True:
+                direction=2
+                x_path.append(move_x)
+                y_path.append(move_y)
+                dir_path.append(2)
+                if (move_x==start_x) and (move_y==start_y) and (direction==start_direction):
+                    continue_path = False
+                move_y = move_y + 1
+                continue
+    #print(x_path, y_path, dir_path)
+    
+    #########################
+    ##G-code for cutting path
+    #########################
+
+    #if single pixel do simple cut
+    if len(x_path) == 1:
+        print("pixel cutting routine at " , location_list)
+        x_start = (x_path[0] * pixel_size) + mill_width/2
+        y_start = square_size - (y_path[0] * pixel_size) - mill_width/2
+        x_end = (x_path[0]*pixel_size) + pixel_size - mill_width/2
+        y_end = square_size - (y_path[0] * pixel_size) - pixel_size + mill_width/2
+        gcode_out.write("( Single pixel cut ) \n")
+        gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})
+        #cut square
+        cut_passes = int(engrave_depth / depth_per_pass)
+        for cut_pass in range(0, cut_passes):
+            pass_depth = (1 + cut_pass) * depth_per_pass
+            gcode_out.write("G1 Z-%0.4f \n" % pass_depth)
+            gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end, 'y': y_start})
+            gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end, 'y': y_end})
+            gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_end})
+            gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})
+        if(engrave_depth%depth_per_pass==0):
+            pass
+        else:
+            gcode_out.write("G1 Z-%0.4f \n" % engrave_depth)
+            gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end, 'y': y_start})
+            gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end, 'y': y_end})
+            gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_end})
+            gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})  
+    else:
+        #start from top pixel and keep going down    
+        x_cut = ( x_path[0] * pixel_size ) + mill_width/2
+        y_cut = square_size - ( y_path[0] * pixel_size ) - mill_width/2
+        #move to start point of path
+        gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
+        cut_passes = int(engrave_depth / depth_per_pass)
+        for cut_pass in range(0, cut_passes):
+            pass_depth = (1 + cut_pass) * depth_per_pass
+            gcode_out.write("G1 Z-%0.4f \n" % pass_depth)
+            for i in range(1,len(x_path)):
+                direction = dir_path[i]
+                #move directions 1=right,2=down,3=left,4=up
+                if direction == 1:
+                    x_cut = ( x_path[i] * pixel_size ) + mill_width/2 
+                    y_cut = square_size - ( y_path[0] * pixel_size ) - mill_width/2
+                    gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
+                elif direction == 2:
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width/2
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width/2
+                    gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
+                elif direction == 3:
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width/2
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width/2
+                    gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
+                elif direction == 4:
+                    x_cut = ( x_path[i] * pixel_size ) + mill_width/2
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width/2
+                    gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
+        if(engrave_depth%depth_per_pass==0):
+            pass
+        else:
+            gcode_out.write("G1 Z-%0.4f \n" % engrave_depth)
+            for i in range(1,len(x_path)):
+                direction = dir_path[i]
+                #move directions 1=right,2=down,3=left,4=up
+                if direction == 1:
+                    x_cut = ( x_path[i] * pixel_size ) + mill_width/2 
+                    y_cut = square_size - ( y_path[0] * pixel_size ) - mill_width/2
+                    gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
+                elif direction == 2:
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width/2
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width/2
+                    gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
+                elif direction == 3:
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width/2
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width/2
+                    gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
+                elif direction == 4:
+                    x_cut = ( x_path[i] * pixel_size ) + mill_width/2
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width/2
+                    gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})      
+
+    #lift cutter away
+    gcode_out.write("G1 Z%0.4f \n" % clearance_height)
+
+
+    
+def build_island_array():
+    #fill in all the outline white bits to identify islands
+    #seed borders
+    for i in range(len(island_array)):
+        island_array[0][i] = False
+        island_array[i][0] = False
+        island_array[len(island_array)-1][i] = False
+        island_array[i][len(island_array[0])-1] = False
+    #make pass from top left
+    for x in range(1,len(island_array)-1):
+        for y in range(1,len(island_array)-1):
+            #set true white and next to other border part
+            if qr.get_matrix()[y][x] == True:
+                pass
+            else:
+                if island_array[x-1][y-1] == False:
+                    island_array[x][y] = False
+                elif island_array[x-1][y] == False:
+                    island_array[x][y] = False
+                elif island_array[x-1][y+1] == False:
+                    island_array[x][y] = False
+                elif island_array[x][y-1] == False:
+                    island_array[x][y] = False
+                elif island_array[x][y+1] == False:
+                    island_array[x][y] = False
+                elif island_array[x+1][y-1] == False:
+                    island_array[x][y] = False
+                elif island_array[x+1][y] == False:
+                    island_array[x][y] = False
+                elif island_array[x+1][y+1] == False:
+                    island_array[x][y] = False
+    #make second pass from bottom right
+    for x in range(len(island_array)-1,1,-1):
+        for y in range(len(island_array)-1,1,-1):
+            #set true white and next to other border part
+            if qr.get_matrix()[y][x] == True:
+                pass
+            else:
+                if island_array[x-1][y-1] == False:
+                    island_array[x][y] = False
+                elif island_array[x-1][y] == False:
+                    island_array[x][y] = False
+                elif island_array[x-1][y+1] == False:
+                    island_array[x][y] = False
+                elif island_array[x][y-1] == False:
+                    island_array[x][y] = False
+                elif island_array[x][y+1] == False:
+                    island_array[x][y] = False
+                elif island_array[x+1][y-1] == False:
+                    island_array[x][y] = False
+                elif island_array[x+1][y] == False:
+                    island_array[x][y] = False
+                elif island_array[x+1][y+1] == False:
+                    island_array[x][y] = False
+    #make third pass from top right
+    for x in range(len(island_array)-1,1,-1):
+        for y in range(1,len(island_array)-1):
+            #set true white and next to other border part
+            if qr.get_matrix()[y][x] == True:
+                pass
+            else:
+                if island_array[x-1][y-1] == False:
+                    island_array[x][y] = False
+                elif island_array[x-1][y] == False:
+                    island_array[x][y] = False
+                elif island_array[x-1][y+1] == False:
+                    island_array[x][y] = False
+                elif island_array[x][y-1] == False:
+                    island_array[x][y] = False
+                elif island_array[x][y+1] == False:
+                    island_array[x][y] = False
+                elif island_array[x+1][y-1] == False:
+                    island_array[x][y] = False
+                elif island_array[x+1][y] == False:
+                    island_array[x][y] = False
+                elif island_array[x+1][y+1] == False:
+                    island_array[x][y] = False
+    #make final pass from bottom left
+    for x in range(1,len(island_array)-1):
+        for y in range(len(island_array)-1,1,-1):
+            #set true white and next to other border part
+            if qr.get_matrix()[y][x] == True:
+                pass
+            else:
+                if island_array[x-1][y-1] == False:
+                    island_array[x][y] = False
+                elif island_array[x-1][y] == False:
+                    island_array[x][y] = False
+                elif island_array[x-1][y+1] == False:
+                    island_array[x][y] = False
+                elif island_array[x][y-1] == False:
+                    island_array[x][y] = False
+                elif island_array[x][y+1] == False:
+                    island_array[x][y] = False
+                elif island_array[x+1][y-1] == False:
+                    island_array[x][y] = False
+                elif island_array[x+1][y] == False:
+                    island_array[x][y] = False
+                elif island_array[x+1][y+1] == False:
+                    island_array[x][y] = False      
+
+
+
+    #fill in the black spots too
+    for x in range(0,len(island_array)):
+        for y in range(0,len(island_array)):
+            #set true white and next to other border part
+            if qr.get_matrix()[y][x] == True:
+                island_array[x][y] = False
+
+
+
+    #print(outline_array)
+        
+if __name__ == '__main__':
+    main()
+
