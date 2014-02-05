@@ -28,7 +28,7 @@ depth_per_pass = 0.15 #depth to cut at a time in mm
 stock_thickness = 3 #thickness of stock in mm
 clearance_height = 2 #height above stock to make quick moves between cuts in mm
 pixel_size = 0.8 #in mm. Version 3 qr code is 29 pixels all sides
-border_size = 1 #number of pixels clearance either side of code area, 4 is standard. Minimum of 1
+border_size = 4 #number of pixels clearance either side of code area, 4 is standard. Minimum of 1
 
 square_size = pixel_size*(29+(border_size*2))
 print(square_size, "mm dimensions")
@@ -82,26 +82,46 @@ def main():
     gcode_out.write("F" + str(feed_rate) + "\n")
     gcode_out.write("G1 Z" + str(clearance_height) + "\n")
 
-    
+    ###################
     ##cut outline paths
+    ###################
     for y, line in enumerate(qr.get_matrix()):
         #print(line_no, line)
         for x, point in enumerate(line):
             #print(line_no, point_no,point)
-            if point==False:
+            if point == False:
                 continue
             else:
-                if check_array[x][y]==False:
+                if check_array[x][y] == False:
                     cut_path(gcode_out, [x,y])
 
+    #########################################
     ##use outline_array to cut around islands
+    #########################################
     for y in range(0,len(island_array)):
         for x in range(0,len(island_array)):
             if island_array[x][y] == False:
                 continue
             else:
-                if check_island_array[x][y]==False:
+                if check_island_array[x][y] == False:
                     cut_island(gcode_out, [x,y])
+
+    ###############################
+    ##cut out material inside paths
+    ###############################
+
+    ##need to refresh check_array first
+                    
+    for y, line in enumerate(qr.get_matrix()):
+        #print(line_no, line)
+        for x, point in enumerate(line):
+            #print(line_no, point_no,point)
+            if point == False:
+                continue
+            else:
+                if check_array[x][y] == False:
+                    #insert function to cut out middle of paths
+                    pass
                     
     gcode_out.write("M30 \n")
     gcode_out.close()
