@@ -21,10 +21,10 @@ output_file = coin_type + "_qr_engrave.nc"
 
 #parameters for the engraving process
 feed_rate = 200 #mm per second
-mill_width = 0.15  #engraver/end mill width in mm at top of cut
+mill_width = 0.3  #engraver/end mill width in mm at top of cut
 tool_number = 1 #number of tool programmed in Mach3. Safe to ignore for manual mounting
-engrave_depth = 0.15 #depth of engrave cut in mm
-depth_per_pass = 0.15 #depth to cut at a time in mm
+engrave_depth = 0.2 #depth of engrave cut in mm
+depth_per_pass = 0.2 #depth to cut at a time in mm
 clearance_height = 2 #height above stock to make quick moves between cuts in mm
 pixel_size = 0.7 #in mm. Version 3 qr code is 29 pixels all sides
 border_size = 1 #number of pixels clearance either side of code area, 4 is standard. Minimum of 1
@@ -1104,7 +1104,7 @@ def cut_horizontal(gcode_out, x, y):
 
 
     if(engrave_depth%depth_per_pass==0):
-        cut_lines = int(pixel_size / mill_width - mill_width)
+        cut_lines = int(pixel_size / mill_width - 1)
         for line_no in range(0, cut_lines):
             y_cut = y_start - mill_width * line_no
             gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start_cut, 'y': y_cut})
