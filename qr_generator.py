@@ -23,13 +23,13 @@ output_file = coin_type + "_qr_engrave.nc"
 feed_rate = 200 #mm per second
 mill_width = 0.3  #engraver/end mill width in mm at top of cut
 tool_number = 1 #number of tool programmed in Mach3. Safe to ignore for manual mounting
-engrave_depth = 0.2 #depth of engrave cut in mm
-depth_per_pass = 0.2 #depth to cut at a time in mm
+engrave_depth = 0.1 #depth of engrave cut in mm
+depth_per_pass = 0.1 #depth to cut at a time in mm
 clearance_height = 2 #height above stock to make quick moves between cuts in mm
 pixel_size = 0.7 #in mm. Version 3 qr code is 29 pixels all sides
 border_size = 1 #number of pixels clearance either side of code area, 4 is standard. Minimum of 1
-x_offset = 4.15 #left offset of where code appears in mm
-y_offset = 5.5  #bottom offset of where code appears in mm
+x_offset = 4.15 #0.7mm 4.15 0.8mm 2.6 #left offset of where code appears in mm
+y_offset = 5.5  #0.7mm 5.5 0.8mm #bottom offset of where code appears in mm
 
 square_size = pixel_size*(29+(border_size*2))
 print(square_size, "mm dimensions")
@@ -401,10 +401,10 @@ def cut_island(gcode_out, x, y ):
 
     #if single pixel do simple cut
     if len(x_path) == 1:
-        x_start = (x_path[0] * pixel_size) - mill_width/2 + x_offset
-        y_start = square_size - (y_path[0] * pixel_size) + mill_width/2 + y_offset
-        x_end = (x_path[0]*pixel_size) + pixel_size + mill_width/2 + x_offset
-        y_end = square_size - (y_path[0] * pixel_size) - pixel_size - mill_width/2 + y_offset
+        x_start = (x_path[0] * pixel_size) - mill_width + x_offset
+        y_start = square_size - (y_path[0] * pixel_size) + mill_width + y_offset
+        x_end = (x_path[0]*pixel_size) + pixel_size + mill_width + x_offset
+        y_end = square_size - (y_path[0] * pixel_size) - pixel_size - mill_width + y_offset
         gcode_out.write("( Single pixel cut ) \n")
         gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})
         #cut square
@@ -426,8 +426,8 @@ def cut_island(gcode_out, x, y ):
             gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})  
     else:
         #start from top pixel and keep going down    
-        x_cut = ( x_path[0] * pixel_size ) - mill_width/2 + x_offset
-        y_cut = square_size - ( y_path[0] * pixel_size ) + mill_width/2 + y_offset
+        x_cut = ( x_path[0] * pixel_size ) - mill_width + x_offset
+        y_cut = square_size - ( y_path[0] * pixel_size ) + mill_width + y_offset
         #move to start point of path
         gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
         cut_passes = int(engrave_depth / depth_per_pass)
@@ -436,45 +436,45 @@ def cut_island(gcode_out, x, y ):
             gcode_out.write("G1 Z-%0.4f \n" % pass_depth)
             #check if path going straight down first
             if dir_path[0] == 2:
-                x_cut = ( x_path[0] * pixel_size ) + pixel_size + mill_width/2 + x_offset
-                y_cut = square_size - ( y_path[0] * pixel_size ) + mill_width/2 + y_offset
+                x_cut = ( x_path[0] * pixel_size ) + pixel_size + mill_width + x_offset
+                y_cut = square_size - ( y_path[0] * pixel_size ) + mill_width + y_offset
                 gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
             for i in range(1,len(x_path)):
                 direction = dir_path[i]
                 #move directions 1=right,2=down,3=left,4=up
                 #clockwise cuts
                 if direction == 1 and dir_path[i-1]==4:
-                    x_cut = ( x_path[i] * pixel_size ) - mill_width/2  + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) - mill_width  + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 2 and dir_path[i-1]==1:
-                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 3 and dir_path[i-1]==2:
-                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 4 and dir_path[i-1]==3:
-                    x_cut = ( x_path[i] * pixel_size ) - mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) - mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 #anticlockwise cuts
                 elif direction == 1 and dir_path[i-1]==2:
-                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width/2 + x_offset + y_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width/2
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width + x_offset + y_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 2 and dir_path[i-1]==3:
-                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 3 and dir_path[i-1]==4:
-                    x_cut = ( x_path[i] * pixel_size ) - mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) - mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 4 and dir_path[i-1]==1:
-                    x_cut = ( x_path[i] * pixel_size ) - mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) - mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
         if(engrave_depth%depth_per_pass==0):
             pass
@@ -482,45 +482,45 @@ def cut_island(gcode_out, x, y ):
             gcode_out.write("G1 Z-%0.4f \n" % engrave_depth)
             #check if path going straight down first
             if dir_path[0] == 2:
-                x_cut = ( x_path[0] * pixel_size ) + pixel_size + mill_width/2 + x_offset
-                y_cut = square_size - ( y_path[0] * pixel_size ) + mill_width/2 + y_offset
+                x_cut = ( x_path[0] * pixel_size ) + pixel_size + mill_width + x_offset
+                y_cut = square_size - ( y_path[0] * pixel_size ) + mill_width + y_offset
                 gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
             for i in range(1,len(x_path)):
                 direction = dir_path[i]
                 #move directions 1=right,2=down,3=left,4=up
                 #clockwise cuts
                 if direction == 1 and dir_path[i-1]==4:
-                    x_cut = ( x_path[i] * pixel_size ) - mill_width/2 + x_offset 
-                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width/2 + x_offset + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) - mill_width + x_offset 
+                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width + x_offset + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 2 and dir_path[i-1]==1:
-                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width/2 + x_offset + y_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width/2
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width + x_offset + y_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 3 and dir_path[i-1]==2:
-                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 4 and dir_path[i-1]==3:
                     x_cut = ( x_path[i] * pixel_size ) - mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width/2 + y_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 #anticlockwise cuts
                 elif direction == 1 and dir_path[i-1]==2:
-                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width/2 + x_offset 
-                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width + x_offset 
+                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 2 and dir_path[i-1]==3:
-                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size + mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 3 and dir_path[i-1]==4:
                     x_cut = ( x_path[i] * pixel_size ) - mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width/2 + y_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size - mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 4 and dir_path[i-1]==1:
-                    x_cut = ( x_path[i] * pixel_size ) - mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) - mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) + mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})      
 
     #lift cutter away
@@ -796,10 +796,10 @@ def cut_path(gcode_out, x, y ):
 
     #if single pixel do simple cut
     if len(x_path) == 1:
-        x_start = (x_path[0] * pixel_size) + mill_width/2 + x_offset
-        y_start = square_size - (y_path[0] * pixel_size) - mill_width/2 + y_offset
-        x_end = (x_path[0]*pixel_size) + pixel_size - mill_width/2 + x_offset
-        y_end = square_size - (y_path[0] * pixel_size) - pixel_size + mill_width/2 + y_offset
+        x_start = (x_path[0] * pixel_size) + mill_width + x_offset
+        y_start = square_size - (y_path[0] * pixel_size) - mill_width + y_offset
+        x_end = (x_path[0]*pixel_size) + pixel_size - mill_width + x_offset
+        y_end = square_size - (y_path[0] * pixel_size) - pixel_size + mill_width + y_offset
         gcode_out.write("( Single pixel cut ) \n")
         gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})
         #cut square
@@ -821,8 +821,8 @@ def cut_path(gcode_out, x, y ):
             gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start, 'y': y_start})  
     else:
         #start from top pixel and keep going down    
-        x_cut = ( x_path[0] * pixel_size ) + mill_width/2 + x_offset
-        y_cut = square_size - ( y_path[0] * pixel_size ) - mill_width/2 + y_offset
+        x_cut = ( x_path[0] * pixel_size ) + mill_width + x_offset
+        y_cut = square_size - ( y_path[0] * pixel_size ) - mill_width + y_offset
         #move to start point of path
         gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
         cut_passes = int(engrave_depth / depth_per_pass)
@@ -831,45 +831,45 @@ def cut_path(gcode_out, x, y ):
             gcode_out.write("G1 Z-%0.4f \n" % pass_depth)
             #check if path going straight down first
             if dir_path[0] == 2:
-                x_cut = ( x_path[0] * pixel_size ) + pixel_size - mill_width/2 + x_offset
-                y_cut = square_size - ( y_path[0] * pixel_size ) - mill_width/2 + y_offset
+                x_cut = ( x_path[0] * pixel_size ) + pixel_size - mill_width + x_offset
+                y_cut = square_size - ( y_path[0] * pixel_size ) - mill_width + y_offset
                 gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
             for i in range(1,len(x_path)):
                 direction = dir_path[i]
                 #move directions 1=right,2=down,3=left,4=up
                 #clockwise cuts
                 if direction == 1 and dir_path[i-1]==4:
-                    x_cut = ( x_path[i] * pixel_size ) + mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 2 and dir_path[i-1]==1:
-                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 3 and dir_path[i-1]==2:
-                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 4 and dir_path[i-1]==3:
-                    x_cut = ( x_path[i] * pixel_size ) + mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 #anticlockwise cuts
                 elif direction == 1 and dir_path[i-1]==2:
-                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 2 and dir_path[i-1]==3:
-                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 3 and dir_path[i-1]==4:
-                    x_cut = ( x_path[i] * pixel_size ) + mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 4 and dir_path[i-1]==1:
-                    x_cut = ( x_path[i] * pixel_size ) + mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})    
         if(engrave_depth%depth_per_pass==0):
             pass
@@ -877,45 +877,45 @@ def cut_path(gcode_out, x, y ):
             gcode_out.write("G1 Z-%0.4f \n" % engrave_depth)
             #check if path going straight down first
             if dir_path[0] == 2:
-                x_cut = ( x_path[0] * pixel_size ) + pixel_size - mill_width/2 + x_offset
-                y_cut = square_size - ( y_path[0] * pixel_size ) - mill_width/2 + y_offset
+                x_cut = ( x_path[0] * pixel_size ) + pixel_size - mill_width + x_offset
+                y_cut = square_size - ( y_path[0] * pixel_size ) - mill_width + y_offset
                 gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
             for i in range(1,len(x_path)):
                 direction = dir_path[i]
                 #move directions 1=right,2=down,3=left,4=up
                 #clockwise cuts
                 if direction == 1 and dir_path[i-1]==4:
-                    x_cut = ( x_path[i] * pixel_size ) + mill_width/2 + x_offset 
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + mill_width + x_offset 
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 2 and dir_path[i-1]==1:
-                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 3 and dir_path[i-1]==2:
-                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 4 and dir_path[i-1]==3:
-                    x_cut = ( x_path[i] * pixel_size ) + mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 #anticlockwise cuts
                 elif direction == 1 and dir_path[i-1]==2:
-                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width/2 + x_offset 
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width + x_offset 
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 2 and dir_path[i-1]==3:
-                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + pixel_size - mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 3 and dir_path[i-1]==4:
-                    x_cut = ( x_path[i] * pixel_size ) + mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - pixel_size + mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                 elif direction == 4 and dir_path[i-1]==1:
-                    x_cut = ( x_path[i] * pixel_size ) + mill_width/2 + x_offset
-                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width/2 + y_offset
+                    x_cut = ( x_path[i] * pixel_size ) + mill_width + x_offset
+                    y_cut = square_size - ( y_path[i] * pixel_size ) - mill_width + y_offset
                     gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})      
 
     #lift cutter away
