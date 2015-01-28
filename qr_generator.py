@@ -4,17 +4,19 @@ import qrcode
 #input address to be made into Qr code
 ######################################
 
-#qrstring = "133Gf5WZEJpNN77upypUGGHZU8pW3oui1c"  #my bitcoin
-qrstring = "DLvCt97Hg7Aia8fdkQt8ZGs9wjDDGygGYW" #my doge
+#qrstring = "133Gf5WZEJpNN77upypUGGHZU8pW3oui1c"  #my bitcoin coinjar
+#qrstring = "141GrJnezKmcF7WBXD53szdyJ4ehuFHASK" #my bitcoin blockchain
+#qrstring = "DLvCt97Hg7Aia8fdkQt8ZGs9wjDDGygGYW" #my doge
+qrstring = "1ZUWgvPfNskFv3CeWUfE4QRHwTVsoiu9o" #my coinjar
 
 #########################
 ##Machining parameters
 #########################
 
 #coin logo type to be engraved
-pretext = "My"
-#coin_type = "bitcoin"
-coin_type = "doge"
+pretext = "30mm-My-coinjar"
+coin_type = "bitcoin"
+#coin_type = "doge"
 #coin_type = "litecoin"
 
 #name of G-code file to be output
@@ -22,17 +24,22 @@ output_file = pretext + "_" + coin_type + "_qr_engrave.nc"
 
 
 #parameters for the engraving process
-feed_rate = 300 #mm per second
-dwell_time = 0.1 #pause time after plunge in seconds
-mill_width = 0.3  #engraver/end mill width in mm at top of cut
+feed_rate = 200 #mm per second
+dwell_time = 0.025 #pause time after plunge in seconds
+mill_width = 0.2  #engraver/end mill width (0.1 smaller than actual cutter width gives better results)
 tool_number = 1 #number of tool programmed in Mach3. Safe to ignore for manual mounting
 engrave_depth = 0.1 #depth of engrave cut in mm
 depth_per_pass = 0.1 #depth to cut at a time in mm
-clearance_height = 2 #height above stock to make quick moves between cuts in mm
-pixel_size = 0.7 #in mm. Version 3 qr code is 29 pixels all sides
+clearance_height = 1 #height above stock to make quick moves between cuts in mm
+pixel_size = 0.6 #in mm. Version 3 qr code is 29 pixels all sides
 border_size = 1 #number of pixels clearance either side of code area, 4 is standard. Minimum of 1
-x_offset = 4.15 #0.7mm 4.15 0.8mm 2.6 #left offset of where code appears in mm
-y_offset = 5.5  #0.7mm 5.5 0.8mm #bottom offset of where code appears in mm
+#offsets
+#centre image
+x_offset = -(( pixel_size ) * ( 29 + 2 * border_size ))/2
+y_offset = x_offset
+#set manual
+#x_offset = -10.85 #0.7mm 4.15 0.8mm 2.6 #left offset of where code appears in mm
+#y_offset = -13  #0.7mm 5.5 0.8mm #bottom offset of where code appears in mm
 
 square_size = pixel_size*(29+(border_size*2))
 print(square_size, "mm dimensions")
@@ -84,6 +91,7 @@ def main():
     gcode_out.write("% Cutting out QR code \n")
     gcode_out.write("T%(a)s M6 ( %(b)smm engraving tool )\n" % {'a': tool_number, 'b': mill_width }) 
     gcode_out.write("F" + str(feed_rate) + "\n")
+    gcode_out.write("M3 \n")
     gcode_out.write("G1 Z" + str(clearance_height) + "\n")
 
     ###################
@@ -1120,7 +1128,6 @@ def cut_horizontal(gcode_out, x, y):
             y_cut = y_start - mill_width * line_no
             gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start_cut, 'y': y_cut})
             gcode_out.write("G1 Z-%0.4f \n" % pass_depth)
-            gcode_out.write("G4 P%0.1f \n" % dwell_time)
             gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end_cut, 'y': y_cut})
             gcode_out.write("G1 Z%0.4f \n" %clearance_height)
         #test if between top to bottom needs to be cut out too
@@ -1130,13 +1137,11 @@ def cut_horizontal(gcode_out, x, y):
                 y_cut = square_size - ( (y + 1) * pixel_size) + y_offset
                 gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start_cut, 'y': y_cut})
                 gcode_out.write("G1 Z-%0.4f \n" % pass_depth)
-                gcode_out.write("G4 P%0.1f \n" % dwell_time)
                 gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end_cut, 'y': y_cut})
                 gcode_out.write("G1 Z%0.4f \n" %clearance_height)
                 y_cut = square_size - ( (y + 1) * pixel_size) - mill_width / 2 + y_offset
                 gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start_cut, 'y': y_cut})
                 gcode_out.write("G1 Z-%0.4f \n" % pass_depth)
-                gcode_out.write("G4 P%0.1f \n" % dwell_time)
                 gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end_cut, 'y': y_cut})
                 gcode_out.write("G1 Z%0.4f \n" %clearance_height)
         else:
@@ -1149,7 +1154,6 @@ def cut_horizontal(gcode_out, x, y):
                         x_cut = ( border_find * pixel_size ) + mill_width + x_offset
                         gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                         gcode_out.write("G1 Z-%0.4f \n" % pass_depth)
-                        gcode_out.write("G4 P%0.1f \n" % dwell_time)
                         start_state = True
                 else:
                     if start_state == True: #end cutting
@@ -1171,7 +1175,6 @@ def cut_horizontal(gcode_out, x, y):
             y_cut = y_start - mill_width * line_no
             gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start_cut, 'y': y_cut})
             gcode_out.write("G1 Z-%0.4f \n" % engrave_depth)
-            gcode_out.write("G4 P%0.1f \n" % dwell_time)
             gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end_cut, 'y': y_cut})
             gcode_out.write("G1 Z%0.4f \n" %clearance_height)
         #test if between top to bottom needs to be cut out too
@@ -1181,7 +1184,6 @@ def cut_horizontal(gcode_out, x, y):
                 y_cut = square_size - ( (y + 1) * pixel_size) + y_offset
                 gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_start_cut, 'y': y_cut})
                 gcode_out.write("G1 Z-%0.4f \n" % engrave_depth)
-                gcode_out.write("G4 P%0.1f \n" % dwell_time)
                 gcode_out.write("G1 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_end_cut, 'y': y_cut})
                 gcode_out.write("G1 Z%0.4f \n" %clearance_height)
                 y_cut = square_size - ( (y + 1) * pixel_size) - mill_width / 2 + y_offset
@@ -1199,7 +1201,6 @@ def cut_horizontal(gcode_out, x, y):
                         x_cut = ( border_find * pixel_size ) + mill_width + x_offset
                         gcode_out.write("G0 X%(x)0.4f Y%(y)0.4f \n" % {'x': x_cut, 'y': y_cut})
                         gcode_out.write("G1 Z-%0.4f \n" % engrave_depth)
-                        gcode_out.write("G4 P%0.1f \n" % dwell_time)
                         start_state = True
                 else:
                     if start_state == True: #end cutting
