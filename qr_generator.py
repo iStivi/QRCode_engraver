@@ -7,7 +7,7 @@ import qrcode
 #qrstring = "133Gf5WZEJpNN77upypUGGHZU8pW3oui1c"  #my bitcoin coinjar
 #qrstring = "141GrJnezKmcF7WBXD53szdyJ4ehuFHASK" #my bitcoin blockchain
 #qrstring = "DLvCt97Hg7Aia8fdkQt8ZGs9wjDDGygGYW" #my doge
-qrstring = "1ZUWgvPfNskFv3CeWUfE4QRHwTVsoiu9o" #my coinjar
+qrstring = "bitcoin:1ZUWgvPfNskFv3CeWUfE4QRHwTVsoiu9o?amount=0.19" #my coinjar
 
 #########################
 ##Machining parameters
@@ -32,7 +32,7 @@ engrave_depth = 0.1 #depth of engrave cut in mm
 depth_per_pass = 0.1 #depth to cut at a time in mm
 clearance_height = 1 #height above stock to make quick moves between cuts in mm
 pixel_size = 0.7 #in mm. Version 3 qr code is 29 pixels all sides
-border_size = 1 #number of pixels clearance either side of code area, 4 is standard. Minimum of 1
+border_size = 4 #number of pixels clearance either side of code area, 4 is standard. Minimum of 1
 #offsets
 #centre image
 x_offset = -(( pixel_size ) * ( 29 + 2 * border_size ))/2
@@ -54,7 +54,7 @@ def main():
     #create qrcode data and generate sample png file
     global qr
     qr = qrcode.QRCode(
-        version=3,  #version 3 is smallest size bitcoin address will compress to
+        version=4,  #version 3 is smallest size bitcoin address will compress to
         error_correction=qrcode.constants.ERROR_CORRECT_M,
         border=border_size,
     )
